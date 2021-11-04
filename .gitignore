@@ -1,4 +1,4 @@
-src/config.ini
+config.ini
 logs/*
 
 # Byte-compiled / optimized / DLL files
