@@ -6,6 +6,7 @@
  * Script to set your home (or business) IP address via cloudflare dns on A-record domain record
  * Specially used when you do not have a fixed IP address
 """
+import sys
 import configparser
 import logging
 import logging.handlers as handlers
@@ -15,7 +16,7 @@ from time import sleep
 
 import CloudFlare
 
-logger = logging.getLogger('my_app')
+logger = logging.getLogger('ddns')
 logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -30,6 +31,8 @@ errorLogHandler.setFormatter(formatter)
 
 logger.addHandler(logHandler)
 logger.addHandler(errorLogHandler)
+# logger.info("A Sample Log Statement")
+# logger.error("An error log statement")
 
 
 class auto_ddns():
@@ -50,6 +53,7 @@ class auto_ddns():
 
     def main(self):
         self.current_ip = self.get_ip()
+
         if not self.current_ip:
             return False
 
@@ -59,11 +63,13 @@ class auto_ddns():
         if not self.get_cloud_dns():
             return False
 
-        if self.cloud_flare_ip is not None and self.cloud_flare_id == self.current_ip:
-            return False
+        if self.cloud_flare_ip is not None and self.cloud_flare_ip == self.current_ip:
+            return True
 
         if not self.set_cloud_dns():
             return False
+
+        return True
 
     @staticmethod
     def get_ip():
@@ -74,14 +80,14 @@ class auto_ddns():
             else:
                 return False
         except Exception as e:
-            logger.critical(e)
+            logger.error(e)
             return False
 
     def connect_cloud_dns(self):
         try:
             self.cf = CloudFlare.CloudFlare(token=self.api_token)
         except CloudFlare.exceptions.CloudFlareAPIError as e:
-            logger.critical('API connection failed: {e}')
+            logger.error('API connection failed: {e}')
             return False
 
         return True
@@ -91,7 +97,7 @@ class auto_ddns():
             params = {'name':self.dns_name, 'match':'all', 'type':self.ip_address_type}
             dns_records = self.cf.zones.dns_records.get(self.zone_id, params=params)
         except CloudFlare.exceptions.CloudFlareAPIError as e:
-            logger.critical('/zones/dns_records/export %s - %d %s - api call failed' % (self.zone_id, e, e))
+            logger.error('/zones/dns_records/export %s - %d %s - api call failed' % (self.zone_id, e, e))
             return False
 
         for dns_record in dns_records:
@@ -115,11 +121,12 @@ class auto_ddns():
     def set_cloud_dns(self):
         try:
             dns_record = self.cf.zones.dns_records.put(self.zone_id, self.dns_id, data=self.new_dns_record)
+            print(dns_record)
         except CloudFlare.exceptions.CloudFlareAPIError as e:
             logger.error('/zones.dns_records.put %s - %d %s - api call failed' % (self.dns_name, e, e))
             return False
 
-        logger.debug('UPDATED: %s %s -> %s' % (self.dns_name, self.cloud_flare_ip, self.current_ip))
+        logger.info('UPDATED: %s %s -> %s' % (self.dns_name, self.cloud_flare_ip, self.current_ip))
         return True
 
 
