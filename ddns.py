@@ -31,9 +31,6 @@ errorLogHandler.setFormatter(formatter)
 
 logger.addHandler(logHandler)
 logger.addHandler(errorLogHandler)
-# logger.info("A Sample Log Statement")
-# logger.error("An error log statement")
-
 
 class auto_ddns():
     def __init__(self) -> None:
@@ -63,7 +60,8 @@ class auto_ddns():
         if not self.get_cloud_dns():
             return False
 
-        if self.cloud_flare_ip is not None and self.cloud_flare_ip == self.current_ip:
+        # If the cloud flare IP and current IP are the same there is nothing to do, Return!
+        if (self.cloud_flare_ip is not None and self.cloud_flare_ip == self.current_ip) or self.new_dns_record is None:
             return True
 
         if not self.set_cloud_dns():
@@ -87,7 +85,7 @@ class auto_ddns():
         try:
             self.cf = CloudFlare.CloudFlare(token=self.api_token)
         except CloudFlare.exceptions.CloudFlareAPIError as e:
-            logger.error('API connection failed: {e}')
+            logger.error(f'API connection failed: {e}')
             return False
 
         return True
@@ -103,6 +101,7 @@ class auto_ddns():
         for dns_record in dns_records:
             try:
                 self.cloud_flare_ip = dns_record['content']
+                self.new_dns_record = None
 
                 if(self.current_ip != self.cloud_flare_ip):
                     self.dns_id = dns_record['id']
@@ -112,6 +111,7 @@ class auto_ddns():
                     'type':self.ip_address_type,
                     'content':self.current_ip,
                     'proxied':dns_record['proxied']  }
+
             except Exception as e:
                 logger.error(e)
                 return False
@@ -121,7 +121,6 @@ class auto_ddns():
     def set_cloud_dns(self):
         try:
             dns_record = self.cf.zones.dns_records.put(self.zone_id, self.dns_id, data=self.new_dns_record)
-            print(dns_record)
         except CloudFlare.exceptions.CloudFlareAPIError as e:
             logger.error('/zones.dns_records.put %s - %d %s - api call failed' % (self.dns_name, e, e))
             return False
