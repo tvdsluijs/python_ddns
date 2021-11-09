@@ -7,6 +7,7 @@
  * Specially used when you do not have a fixed IP address
 """
 import sys
+import os
 import configparser
 import logging
 import logging.handlers as handlers
@@ -21,11 +22,28 @@ logger.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-logHandler = handlers.TimedRotatingFileHandler('logs/normal.log', when='M', interval=1, backupCount=0)
+dir_path = os.path.dirname(os.path.realpath(__file__))
+log_folder = os.path.join(dir_path, 'logs')
+normal_log = os.path.join(log_folder, 'normal.log')
+error_log = os.path.join(log_folder, 'error.log')
+
+#check if everything is there
+os.makedirs(log_folder, exist_ok=True)
+if not os.path.isfile(normal_log):
+    f = open(normal_log, 'w+')  # open file in write mode
+    f.write('This is not the normal you are looking for!')
+    f.close()
+
+if not os.path.isfile(error_log):
+    f = open(normal_log, 'w+')  # open file in write mode
+    f.write('Danger Will Robinson!')
+    f.close()
+
+logHandler = handlers.TimedRotatingFileHandler(normal_log, when='M', interval=1, backupCount=0)
 logHandler.setLevel(logging.INFO)
 logHandler.setFormatter(formatter)
 
-errorLogHandler = handlers.RotatingFileHandler('logs/error.log', maxBytes=5000, backupCount=0)
+errorLogHandler = handlers.RotatingFileHandler(error_log, maxBytes=5000, backupCount=0)
 errorLogHandler.setLevel(logging.ERROR)
 errorLogHandler.setFormatter(formatter)
 
@@ -34,13 +52,10 @@ logger.addHandler(errorLogHandler)
 
 class auto_ddns():
     def __init__(self) -> None:
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-
-        self.zone_id = config['CloudFlare']['zone_id']
-        self.api_token = config['CloudFlare']['api_token']
-        self.ip_address_type = config['CloudFlare']['ip_address_type']
-        self.dns_name = config['CloudFlare']['dns_name']
+        self.zone_id = None
+        self.api_token = None
+        self.ip_address_type = None
+        self.dns_name = None
 
         self.current_ip = None
         self.cloud_flare_ip = None
@@ -68,6 +83,24 @@ class auto_ddns():
             return False
 
         return True
+
+    def fill_that_config(self):
+        config_file = './config.ini'
+        if not os.path.isfile(config_file):
+            logger.error('There is no config.ini file!')
+            sys.exit('There is no config.ini file!')
+
+        config = configparser.ConfigParser()
+        config.read(config_file)
+
+        try:
+            self.zone_id = config['CloudFlare']['zone_id']
+            self.api_token = config['CloudFlare']['api_token']
+            self.ip_address_type = config['CloudFlare']['ip_address_type']
+            self.dns_name = config['CloudFlare']['dns_name']
+        except KeyError as e:
+            logger.error(f'API connection failed: {e}')
+            sys.exit('I think your config.ini is incorrect!')
 
     @staticmethod
     def get_ip():
