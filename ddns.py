@@ -64,12 +64,16 @@ class auto_ddns():
         self.dns_id = None
 
     def main(self):
+        self.fill_that_config()
+
         self.current_ip = self.get_ip()
 
         if not self.current_ip:
             return False
 
-        if not self.connect_cloud_dns():
+        self.cf = self.connect_cloud_dns()
+
+        if not self.cf :
             return False
 
         if not self.get_cloud_dns():
@@ -116,7 +120,7 @@ class auto_ddns():
 
     def connect_cloud_dns(self):
         try:
-            self.cf = CloudFlare.CloudFlare(token=self.api_token)
+            return CloudFlare.CloudFlare(token=self.api_token)
         except CloudFlare.exceptions.CloudFlareAPIError as e:
             logger.error(f'API connection failed: {e}')
             return False
